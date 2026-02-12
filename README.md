@@ -31,6 +31,16 @@ Or with pip:
 pip install fastapi uvicorn[standard] twilio python-dotenv python-multipart
 ```
 
+**Download Twilio Voice SDK:**
+
+Twilio Voice SDK v2+ is not available via CDN. Download it locally:
+
+```bash
+curl -L -o twilio.min.js https://unpkg.com/@twilio/voice-sdk@2.1.2/dist/twilio.min.js
+```
+
+Or download manually from: https://www.npmjs.com/package/@twilio/voice-sdk
+
 ### 2. Configure Environment
 
 Copy the example environment file and add your credentials:
