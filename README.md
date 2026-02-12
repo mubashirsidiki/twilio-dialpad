@@ -23,7 +23,7 @@ Minimal browser-based dialpad for making calls through Twilio.
 ```bash
 git clone https://github.com/mubashirsidiki/twilio-dialpad.git
 cd twilio-dialpad
-uv pip install -e .
+uv sync
 ```
 
 Or with pip:
