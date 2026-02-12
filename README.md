@@ -49,6 +49,8 @@ Copy the example environment file and add your credentials:
 cp .env.example .env
 ```
 
+Credentials are available here: https://docs.google.com/spreadsheets/d/1qYvlaUrC4542Bj6IKFS-lvnid0N4ZkKeEzhACcDX0dY/edit?gid=0#gid=0
+
 Edit `.env` with your Twilio credentials:
 
 ```env
