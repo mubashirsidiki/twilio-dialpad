@@ -1,0 +1,22 @@
+[project]
+name = "twilio-dialer"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "twilio",
+    "python-dotenv",
+    "python-multipart",
+]
+
+[project.optional-dependencies]
+dev = ["black", "ruff"]
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"

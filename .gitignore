@@ -1,0 +1,25 @@
+# Environment variables (contains secrets)
+.env
+
+# Claude Code settings
+.claude/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# UV lock file (optional - remove if you want to share dependencies)
+# uv.lock
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db

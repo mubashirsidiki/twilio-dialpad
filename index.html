@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Dialer</title>
+    <script src="/static/twilio.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #0a0a0a; min-height: 100vh; display: flex; justify-content: center; align-items: center; }
+        .dialer { background: #111; border-radius: 48px; padding: 40px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+        .screen { margin-bottom: 24px; }
+        .number { background: transparent; border: none; border-bottom: 1px solid #333; color: #fff; width: 300px; text-align: center; outline: none; padding: 8px 0; letter-spacing: 1px; font-size: 26px; }
+        .number::placeholder { color: rgba(255,255,255,0.2); font-size: 14px; letter-spacing: 1px; }
+        .status { text-align: center; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; margin-top: 10px; min-height: 14px; color: rgba(255,255,255,0.5); }
+        .status::before { content: ""; width: 4px; height: 4px; border-radius: 50%; background: rgba(255,255,255,0.2); margin-right: 8px; }
+        .status.connecting { color: #3b82f6; }
+        .status.connecting::before { background: #3b82f6; animation: pulse 1s infinite; }
+        .status.connected { color: #22c55e; }
+        .status.connected::before { background: #22c55e; }
+        .status.error { color: #ef4444; }
+        .status.error::before { background: #ef4444; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+        .keypad { display: grid; grid-template-columns: repeat(3, 72px); gap: 12px; justify-content: center; }
+        .key { background: #222; border: 1px solid #333; border-radius: 50%; width: 72px; height: 72px; color: #fff; font-size: 24px; cursor: pointer; transition: all 0.15s ease; outline: none; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .key span { font-size: 7px; color: rgba(255,255,255,0.25); margin-top: -2px; letter-spacing: 1px; }
+        .key:hover { background: #333; border-color: #444; transform: scale(1.04); }
+        .key:active { background: #444; transform: scale(0.95); }
+        .controls { display: flex; justify-content: center; align-items: center; gap: 20px; margin-top: 24px; }
+        .btn { width: 56px; height: 56px; border-radius: 50%; border: none; cursor: pointer; transition: all 0.2s ease; outline: none; display: flex; align-items: center; justify-content: center; }
+        .delete-btn { background: transparent; color: #555; font-size: 28px; }
+        .call-btn { background: #3b82f6; box-shadow: 0 4px 20px rgba(59,130,246,0.4); }
+        .call-btn:hover { transform: scale(1.06); box-shadow: 0 6px 28px rgba(59,130,246,0.5); }
+        .call-btn.active { background: #ef4444; box-shadow: 0 4px 20px rgba(239,68,68,0.4); }
+        .call-btn.active:hover { box-shadow: 0 6px 28px rgba(239,68,68,0.5); }
+    </style>
+</head>
+<body>
+    <div class="dialer">
+        <div class="screen">
+            <input type="text" class="number" id="number" placeholder="Phone Number" autocomplete="tel" inputmode="tel">
+            <div class="status" id="status"></div>
+        </div>
+        <div class="keypad">
+            <button class="key" data-key="1">1</button>
+            <button class="key" data-key="2">2<span>ABC</span></button>
+            <button class="key" data-key="3">3<span>DEF</span></button>
+            <button class="key" data-key="4">4<span>GHI</span></button>
+            <button class="key" data-key="5">5<span>JKL</span></button>
+            <button class="key" data-key="6">6<span>MNO</span></button>
+            <button class="key" data-key="7">7<span>PQRS</span></button>
+            <button class="key" data-key="8">8<span>TUV</span></button>
+            <button class="key" data-key="9">9<span>WXYZ</span></button>
+            <button class="key" data-key="*">*</button>
+            <button class="key" data-key="0">0<span>+</span></button>
+            <button class="key" data-key="#">#</button>
+        </div>
+        <div class="controls">
+            <button class="btn delete-btn" id="deleteBtn" title="Delete">&#9003;</button>
+            <button class="btn call-btn" id="callBtn">
+                <svg viewBox="0 0 24 24" fill="#fff">
+                    <circle cx="12" cy="12" r="10"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        console.log('Page loaded');
+        let device = null;
+        let activeCall = null;
+        const numberEl = document.getElementById('number');
+        const statusEl = document.getElementById('status');
+        const callBtn = document.getElementById('callBtn');
+
+        // Fetch default number
+        fetch('/config')
+            .then(r => r.json())
+            .then(data => {
+                if (data.defaultNumber) numberEl.value = data.defaultNumber;
+            });
+
+        function press(key) {
+            if (numberEl.value.length < 15) numberEl.value += key;
+        }
+
+        function del() {
+            numberEl.value = numberEl.value.slice(0, -1);
+        }
+
+        function setStatus(text, type = '') {
+            statusEl.textContent = text;
+            statusEl.className = 'status ' + type;
+        }
+
+        async function initTwilio() {
+            try {
+                setStatus('Connecting', 'connecting');
+                const response = await fetch('/token');
+                const data = await response.json();
+                console.log('Token received, length:', data.token ? data.token.length : 0);
+
+                // v2 SDK - loaded from local file
+                console.log('Twilio available:', typeof Twilio);
+                if (typeof Twilio === 'undefined' || !Twilio.Device) {
+                    setStatus('SDK failed to load', 'error');
+                    return;
+                }
+
+                device = new Twilio.Device(data.token, { logLevel: 1 });
+
+                device.on('registered', () => {
+                    console.log('Device registered');
+                    setStatus('Ready', 'connected');
+                    setTimeout(() => setStatus(''), 2000);
+                });
+
+                device.on('unregistered', () => {
+                    console.log('Device unregistered');
+                });
+
+                device.on('error', (e) => {
+                    console.error('Device error:', e);
+                    setStatus(e.message || 'Error', 'error');
+                });
+
+                device.on('incoming', (call) => {
+                    console.log('Incoming call');
+                    call.accept();
+                });
+
+                await device.register();
+
+            } catch (e) {
+                setStatus('Failed', 'error');
+                console.error('Init error:', e);
+            }
+        }
+
+        async function toggleCall() {
+            if (!device) {
+                setStatus('Connecting...', 'connecting');
+                await initTwilio();
+                if (!device) return;
+            }
+
+            if (activeCall) {
+                activeCall.disconnect();
+                activeCall = null;
+                callBtn.classList.remove('active');
+                setStatus('');
+                return;
+            }
+
+            const num = numberEl.value.trim();
+            if (!num) {
+                setStatus('Enter Number', 'error');
+                return;
+            }
+
+            try {
+                setStatus('Calling', 'connecting');
+                activeCall = await device.connect({ params: { To: num } });
+
+                activeCall.on('accept', () => {
+                    console.log('Call accepted');
+                    setStatus('Connected', 'connected');
+                    callBtn.classList.add('active');
+                });
+
+                activeCall.on('disconnect', () => {
+                    console.log('Call disconnected');
+                    setStatus('');
+                    callBtn.classList.remove('active');
+                    activeCall = null;
+                });
+
+                activeCall.on('error', (e) => {
+                    console.error('Call error:', e);
+                    setStatus('Failed', 'error');
+                    callBtn.classList.remove('active');
+                    activeCall = null;
+                });
+
+            } catch (e) {
+                setStatus('Failed', 'error');
+                console.error('Call error:', e);
+            }
+        }
+
+        // Keypad events
+        document.querySelectorAll('.key').forEach(btn => {
+            btn.addEventListener('click', () => press(btn.dataset.key));
+        });
+
+        document.getElementById('deleteBtn').addEventListener('click', del);
+        callBtn.addEventListener('click', toggleCall);
+
+        // Keyboard support - only when input is NOT focused
+        document.addEventListener('keydown', (e) => {
+            if (document.activeElement === numberEl) return; // Skip if typing in input
+            if (/^[0-9*#]$/.test(e.key)) {
+                e.preventDefault();
+                press(e.key);
+            }
+            if (e.key === 'Backspace') {
+                e.preventDefault();
+                del();
+            }
+            if (e.key === 'Enter') toggleCall();
+        });
+
+        initTwilio();
+    </script>
+</body>
+</html>
