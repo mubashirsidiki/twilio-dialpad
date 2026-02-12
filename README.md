@@ -13,14 +13,17 @@ Minimal browser-based dialpad for making calls through Twilio.
 
 - Twilio account with Voice enabled
 - Python 3.10+
-- ngrok (for local development)
+- [uv](https://github.com/astral-sh/uv) (recommended) or pip
+- [ngrok](https://ngrok.com/download) (for local development)
 
 ## Setup
 
-### 1. Install Dependencies
+### 1. Clone and Install Dependencies
 
 ```bash
-uv pip install -r requirements.txt
+git clone https://github.com/mubashirsidiki/twilio-dialpad.git
+cd twilio-dialpad
+uv pip install -e .
 ```
 
 Or with pip:
@@ -30,7 +33,13 @@ pip install fastapi uvicorn[standard] twilio python-dotenv python-multipart
 
 ### 2. Configure Environment
 
-Create a `.env` file:
+Copy the example environment file and add your credentials:
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` with your Twilio credentials:
 
 ```env
 TWILIO_ACCOUNT_SID=ACxxxxx
@@ -53,7 +62,7 @@ DEFAULT_NUMBER=+1xxxxx
 **Create TwiML App:**
 1. Go to https://console.twilio.com/us1/develop/voice/twiml-apps
 2. Create new TwiML App
-3. Set Voice URL to your ngrok URL: `https://xxx.ngrok-free.app/voice`
+3. Set Voice URL to: `https://your-ngrok-url.ngrok-free.app/voice`
 4. Save App SID to `.env`
 
 **Verify Phone Numbers** (Trial accounts only):
@@ -72,12 +81,16 @@ uv run python backend.py
 ngrok http 8000
 ```
 
-Update your TwiML App Voice URL to the ngrok URL.
+Copy the ngrok URL and update your TwiML App's Voice URL in Twilio Console.
+
+### 6. Open in Browser
+
+Navigate to your ngrok URL (e.g., `https://xxx.ngrok-free.app`)
 
 ## Usage
 
 1. Open the ngrok URL in your browser
-2. Click the dialpad buttons or type numbers
+2. Click the dialpad buttons or type numbers directly
 3. Press the blue call button to dial
 4. Press again to hangup
 
@@ -96,3 +109,9 @@ Update your TwiML App Voice URL to the ngrok URL.
 - `backend.py` — FastAPI server for token generation
 - `index.html` — Dialpad UI
 - `twilio.min.js` — Twilio Voice SDK (downloaded locally)
+- `.env.example` — Environment template
+- `pyproject.toml` — Python dependencies
+
+## License
+
+MIT
