@@ -35,9 +35,9 @@ cp .env.example .env
 
 ## Twilio Setup & Configuration
 
-Follow these steps to obtain your credentials in the [Twilio Console](https://console.twilio.com/):
+Follow these steps to obtain your credentials in the new [Twilio Console (1console.twilio.com)](https://1console.twilio.com/):
 
-> 💡 **Twilio UI Note**: Twilio frequently updates and reorganizes its Console navigation menus. If any sidebar paths look different on your dashboard, simply use the global search bar (press `/` or the search icon at the top of Twilio Console) to jump directly to **"Numbers"**, **"API keys"**, or **"TwiML apps"**. If you still need help finding anything, feel free to [open an issue](https://github.com/mubashirsidiki/twilio-dialpad/issues)!
+> 💡 **Console UI Note**: This guide is specifically written for the new Twilio Console ([1console.twilio.com](https://1console.twilio.com/)) rather than legacy `console.twilio.com`. While the underlying features and settings are pretty much the same, the UI/UX layout and sidebar locations differ. If any paths look different on your dashboard, simply use the global search bar (press `/` or the search icon at the top of the Console) to jump directly to **"Numbers"**, **"API keys"**, or **"TwiML apps"**. If you still need help finding anything, feel free to [open an issue](https://github.com/mubashirsidiki/twilio-dialpad/issues)!
 
 ### 1. Account Creation
 * Create an account on Twilio if you haven't already.
