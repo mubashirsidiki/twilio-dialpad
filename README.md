@@ -13,7 +13,7 @@ A minimal, browser-based phone dialer for placing and receiving calls through Tw
 ## Preview
 
 <div align="center">
-  <img src="assets/dialpad-ui.png" alt="Twilio Dialpad Interface" width="340">
+  <img src="assets/dialpad-ui.png" alt="Twilio Dialpad Interface" width="100%">
 </div>
 
 ---
