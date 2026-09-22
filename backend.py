@@ -4,10 +4,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from twilio.jwt.access_token import AccessToken
 from twilio.jwt.access_token.grants import VoiceGrant
 from twilio.twiml.voice_response import VoiceResponse
-from dotenv import load_dotenv
-import os
+from dotenv import dotenv_values
 
-load_dotenv()
+env = dotenv_values(".env")
 
 app = FastAPI()
 
@@ -19,47 +18,32 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Twilio credentials - load from environment
-TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID", "")
-TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN", "")
-TWILIO_NUMBER = os.getenv("TWILIO_NUMBER", "")
-
-# Twilio API Key - you need to create one in Twilio Console
-# Go to https://console.twilio.com/us1/develop/api-keys/create
-# Create a "Standard" API key with "Voice" permissions
-TWILIO_API_KEY = os.getenv("TWILIO_API_KEY", "YOUR_API_KEY_SID")
-TWILIO_API_SECRET = os.getenv("TWILIO_API_SECRET", "YOUR_API_KEY_SECRET")
-
-# Your Twilio TwiML Application SID
-# Create at https://console.twilio.com/us1/develop/sip/trunking
-# Or use Programmable Voice -> TwiML Apps
-TWIML_APP_SID = os.getenv("TWIML_APP_SID", "YOUR_TWIML_APP_SID")
-DEFAULT_NUMBER = os.getenv("DEFAULT_NUMBER", "")
+# Twilio configuration - loaded via dotenv
+TWILIO_NUMBER_FOR_MAKING_CALLS = env.get("TWILIO_NUMBER_FOR_MAKING_CALLS") or ""
+NUMBER_FOR_RECEIVING_CALLS = env.get("NUMBER_FOR_RECEIVING_CALLS") or ""
+TWILIO_API_SID = env.get("TWILIO_API_SID") or ""
+TWILIO_API_CLIENT_SECRET = env.get("TWILIO_API_CLIENT_SECRET") or ""
+TWILIO_ACCOUNT_SID = env.get("TWILIO_ACCOUNT_SID") or ""
+TWIML_APP_SID = env.get("TWIML_APP_SID") or ""
 
 
 @app.get("/")
 async def root():
     with open("index.html", "r") as f:
         content = f.read()
-        # Inject default number if set
-        if DEFAULT_NUMBER:
+        # Inject receiving/default number if set
+        if NUMBER_FOR_RECEIVING_CALLS:
             content = content.replace(
-                'placeholder="Phone Number"', f'placeholder="Phone Number" value="{DEFAULT_NUMBER}"'
+                'placeholder="Phone Number"', f'placeholder="Phone Number" value="{NUMBER_FOR_RECEIVING_CALLS}"'
             )
         return HTMLResponse(content)
 
 
 @app.get("/config")
 async def config():
-    """Return default number for frontend"""
-    return JSONResponse({"defaultNumber": DEFAULT_NUMBER})
+    """Return default/receiving number for frontend"""
+    return JSONResponse({"defaultNumber": NUMBER_FOR_RECEIVING_CALLS})
 
-
-@app.get("/static/twilio.js")
-async def serve_twilio_sdk():
-    """Serve the Twilio Voice SDK"""
-    with open("twilio.min.js", "r") as f:
-        return Response(content=f.read(), media_type="application/javascript")
 
 
 @app.post("/voice")
@@ -69,8 +53,12 @@ async def voice(request: Request):
     to_number = form_data.get("To", "")
     print(f"Voice endpoint called - To: {to_number}, All data: {dict(form_data)}")
 
+    # Route to NUMBER_FOR_RECEIVING_CALLS if incoming or not specified
+    if (not to_number or to_number == TWILIO_NUMBER_FOR_MAKING_CALLS) and NUMBER_FOR_RECEIVING_CALLS:
+        to_number = NUMBER_FOR_RECEIVING_CALLS
+
     response = VoiceResponse()
-    response.dial(number=to_number, caller_id=TWILIO_NUMBER)
+    response.dial(number=to_number, caller_id=TWILIO_NUMBER_FOR_MAKING_CALLS)
 
     twiml = str(response)
     print(f"Returning TwiML: {twiml}")
@@ -81,7 +69,7 @@ async def voice(request: Request):
 async def debug_token():
     """Debug endpoint to see token details without decoding"""
     token = AccessToken(
-        TWILIO_ACCOUNT_SID, TWILIO_API_KEY, TWILIO_API_SECRET, identity="web-dialer-user"
+        TWILIO_ACCOUNT_SID, TWILIO_API_SID, TWILIO_API_CLIENT_SECRET, identity="web-dialer-user"
     )
     voice_grant = VoiceGrant(
         outgoing_application_sid=TWIML_APP_SID,
@@ -92,7 +80,7 @@ async def debug_token():
     return JSONResponse({
         "token": jwt_token,
         "account_sid": TWILIO_ACCOUNT_SID,
-        "api_key": TWILIO_API_KEY,
+        "api_key": TWILIO_API_SID,
         "twiml_app_sid": TWIML_APP_SID,
     })
 
@@ -100,10 +88,10 @@ async def debug_token():
 @app.get("/token")
 async def get_token():
     """Generate a Twilio JWT token for the client"""
-    print(f"Creating token with: AccountSID={TWILIO_ACCOUNT_SID}, APIKey={TWILIO_API_KEY}, TwiMLApp={TWIML_APP_SID}")
+    print(f"Creating token with: AccountSID={TWILIO_ACCOUNT_SID}, APIKey={TWILIO_API_SID}, TwiMLApp={TWIML_APP_SID}")
 
     token = AccessToken(
-        TWILIO_ACCOUNT_SID, TWILIO_API_KEY, TWILIO_API_SECRET, identity="web-dialer-user"
+        TWILIO_ACCOUNT_SID, TWILIO_API_SID, TWILIO_API_CLIENT_SECRET, identity="web-dialer-user"
     )
 
     voice_grant = VoiceGrant(

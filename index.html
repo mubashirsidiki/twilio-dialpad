@@ -2,95 +2,549 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dialer</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📞</text></svg>">
-    <script src="/static/twilio.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@twilio/voice-sdk@2.1.2/dist/twilio.min.js"></script>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #0a0a0a; min-height: 100vh; display: flex; justify-content: center; align-items: center; }
-        .dialer { background: #111; border-radius: 48px; padding: 40px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
-        .screen { margin-bottom: 24px; }
-        .number { background: transparent; border: none; border-bottom: 1px solid #333; color: #fff; width: 300px; text-align: center; outline: none; padding: 8px 0; letter-spacing: 1px; font-size: 26px; }
-        .number::placeholder { color: rgba(255,255,255,0.2); font-size: 14px; letter-spacing: 1px; }
-        .status { text-align: center; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; margin-top: 10px; min-height: 14px; color: rgba(255,255,255,0.5); }
-        .status::before { content: ""; width: 4px; height: 4px; border-radius: 50%; background: rgba(255,255,255,0.2); margin-right: 8px; }
-        .status.connecting { color: #3b82f6; }
-        .status.connecting::before { background: #3b82f6; animation: pulse 1s infinite; }
-        .status.connected { color: #22c55e; }
-        .status.connected::before { background: #22c55e; }
-        .status.error { color: #ef4444; }
-        .status.error::before { background: #ef4444; }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-        .keypad { display: grid; grid-template-columns: repeat(3, 72px); gap: 12px; justify-content: center; }
-        .key { background: #222; border: 1px solid #333; border-radius: 50%; width: 72px; height: 72px; color: #fff; font-size: 24px; cursor: pointer; transition: all 0.15s ease; outline: none; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        .key span { font-size: 7px; color: rgba(255,255,255,0.25); margin-top: -2px; letter-spacing: 1px; }
-        .key:hover { background: #333; border-color: #444; transform: scale(1.04); }
-        .key:active { background: #444; transform: scale(0.95); }
-        .controls { display: flex; justify-content: center; align-items: center; gap: 20px; margin-top: 24px; }
-        .btn { width: 56px; height: 56px; border-radius: 50%; border: none; cursor: pointer; transition: all 0.2s ease; outline: none; display: flex; align-items: center; justify-content: center; }
-        .delete-btn { background: transparent; color: #555; font-size: 28px; }
-        .call-btn { background: #3b82f6; box-shadow: 0 4px 20px rgba(59,130,246,0.4); }
-        .call-btn:hover { transform: scale(1.06); box-shadow: 0 6px 28px rgba(59,130,246,0.5); }
-        .call-btn.active { background: #ef4444; box-shadow: 0 4px 20px rgba(239,68,68,0.4); }
-        .call-btn.active:hover { box-shadow: 0 6px 28px rgba(239,68,68,0.5); }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #000000;
+            color: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            overflow: hidden;
+        }
+
+        .dialer-card {
+            background: #111113;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 44px;
+            padding: 36px 32px 32px;
+            width: 100%;
+            max-width: 360px;
+            box-shadow: 0 30px 80px -15px rgba(0, 0, 0, 0.9), 0 0 1px rgba(255, 255, 255, 0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* Screen & Display Area */
+        .screen {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.4);
+            margin-bottom: 12px;
+            height: 20px;
+            transition: all 0.2s ease;
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .status-badge.connecting {
+            color: #3b82f6;
+        }
+        .status-badge.connecting .status-dot {
+            background: #3b82f6;
+            animation: pulse 1s infinite ease-in-out;
+        }
+
+        .status-badge.connected {
+            color: #22c55e;
+        }
+        .status-badge.connected .status-dot {
+            background: #22c55e;
+        }
+
+        .status-badge.muted {
+            color: #f59e0b;
+        }
+        .status-badge.muted .status-dot {
+            background: #f59e0b;
+        }
+
+        .status-badge.error {
+            color: #ef4444;
+        }
+        .status-badge.error .status-dot {
+            background: #ef4444;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.3; transform: scale(0.85); }
+        }
+
+        .number-input {
+            background: transparent;
+            border: none;
+            color: #ffffff;
+            font-family: inherit;
+            font-size: 30px;
+            font-weight: 300;
+            letter-spacing: 1.5px;
+            text-align: center;
+            width: 100%;
+            outline: none;
+            padding: 4px 0;
+            user-select: text;
+            -webkit-user-select: text;
+        }
+
+        .number-input::placeholder {
+            color: rgba(255, 255, 255, 0.18);
+            font-weight: 300;
+            font-size: 24px;
+            letter-spacing: 0.5px;
+        }
+
+        /* Keypad Grid */
+        .keypad {
+            display: grid;
+            grid-template-columns: repeat(3, 76px);
+            gap: 16px 18px;
+            justify-content: center;
+            margin-bottom: 28px;
+        }
+
+        .key {
+            background: #1c1c1e;
+            border: none;
+            border-radius: 50%;
+            width: 76px;
+            height: 76px;
+            color: #ffffff;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.12s ease, transform 0.12s ease;
+            outline: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .key:hover {
+            background: #2c2c2e;
+        }
+
+        .key:active {
+            background: #3a3a3c;
+            transform: scale(0.94);
+        }
+
+        .key-num {
+            font-size: 28px;
+            font-weight: 400;
+            line-height: 1;
+            color: rgba(255, 255, 255, 0.95);
+        }
+
+        .key-letters {
+            font-size: 8px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.4);
+            letter-spacing: 2px;
+            margin-top: 3px;
+            text-transform: uppercase;
+        }
+
+        .key-special {
+            font-size: 26px;
+            font-weight: 400;
+            line-height: 1;
+            color: rgba(255, 255, 255, 0.85);
+        }
+
+        /* Bottom Controls */
+        .controls {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            padding: 0 10px;
+        }
+
+        .action-btn {
+            background: transparent;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            outline: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Mute Button */
+        .mute-btn {
+            width: 54px;
+            height: 54px;
+            color: rgba(255, 255, 255, 0.35);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .mute-btn:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .mute-btn:active:not(:disabled) {
+            transform: scale(0.92);
+        }
+
+        .mute-btn.active {
+            background: #ffffff;
+            color: #000000;
+        }
+
+        .mute-btn:disabled {
+            opacity: 0.25;
+            cursor: not-allowed;
+        }
+
+        /* Call Button */
+        .call-btn {
+            width: 74px;
+            height: 74px;
+            background: #22c55e;
+            color: #ffffff;
+            box-shadow: none;
+        }
+
+        .call-btn:hover {
+            background: #16a34a;
+            transform: scale(1.03);
+            box-shadow: none;
+        }
+
+        .call-btn:active {
+            transform: scale(0.95);
+            box-shadow: none;
+        }
+
+        .call-btn.in-call {
+            background: #ef4444;
+            box-shadow: none;
+        }
+
+        .call-btn.in-call:hover {
+            background: #dc2626;
+            box-shadow: none;
+        }
+
+        .call-icon {
+            width: 30px;
+            height: 30px;
+            transition: transform 0.25s ease;
+        }
+
+        .call-btn.in-call .call-icon {
+            transform: rotate(135deg);
+        }
+
+        /* Delete Button */
+        .delete-btn {
+            width: 54px;
+            height: 54px;
+            color: rgba(255, 255, 255, 0.45);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .delete-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.85);
+        }
+
+        .delete-btn:active {
+            transform: scale(0.92);
+        }
+
+        .delete-btn.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
-    <div class="dialer">
+    <div class="dialer-card">
+        <!-- Display & Status Area -->
         <div class="screen">
-            <input type="text" class="number" id="number" placeholder="Phone Number" autocomplete="tel" inputmode="tel">
-            <div class="status" id="status"></div>
+            <div class="status-badge" id="statusBadge">
+                <span class="status-dot"></span>
+                <span id="statusText">Ready</span>
+            </div>
+            <input 
+                type="tel" 
+                class="number-input" 
+                id="numberInput" 
+                placeholder="Phone Number" 
+                autocomplete="off" 
+                spellcheck="false"
+            >
         </div>
+
+        <!-- 3x4 Keypad Grid -->
         <div class="keypad">
-            <button class="key" data-key="1">1</button>
-            <button class="key" data-key="2">2<span>ABC</span></button>
-            <button class="key" data-key="3">3<span>DEF</span></button>
-            <button class="key" data-key="4">4<span>GHI</span></button>
-            <button class="key" data-key="5">5<span>JKL</span></button>
-            <button class="key" data-key="6">6<span>MNO</span></button>
-            <button class="key" data-key="7">7<span>PQRS</span></button>
-            <button class="key" data-key="8">8<span>TUV</span></button>
-            <button class="key" data-key="9">9<span>WXYZ</span></button>
-            <button class="key" data-key="*">*</button>
-            <button class="key" data-key="0">0<span>+</span></button>
-            <button class="key" data-key="#">#</button>
+            <button class="key" data-key="1">
+                <span class="key-num">1</span>
+                <span class="key-letters">&nbsp;</span>
+            </button>
+            <button class="key" data-key="2">
+                <span class="key-num">2</span>
+                <span class="key-letters">ABC</span>
+            </button>
+            <button class="key" data-key="3">
+                <span class="key-num">3</span>
+                <span class="key-letters">DEF</span>
+            </button>
+            <button class="key" data-key="4">
+                <span class="key-num">4</span>
+                <span class="key-letters">GHI</span>
+            </button>
+            <button class="key" data-key="5">
+                <span class="key-num">5</span>
+                <span class="key-letters">JKL</span>
+            </button>
+            <button class="key" data-key="6">
+                <span class="key-num">6</span>
+                <span class="key-letters">MNO</span>
+            </button>
+            <button class="key" data-key="7">
+                <span class="key-num">7</span>
+                <span class="key-letters">PQRS</span>
+            </button>
+            <button class="key" data-key="8">
+                <span class="key-num">8</span>
+                <span class="key-letters">TUV</span>
+            </button>
+            <button class="key" data-key="9">
+                <span class="key-num">9</span>
+                <span class="key-letters">WXYZ</span>
+            </button>
+            <button class="key" data-key="*">
+                <span class="key-special">*</span>
+            </button>
+            <button class="key" data-key="0">
+                <span class="key-num">0</span>
+                <span class="key-letters">+</span>
+            </button>
+            <button class="key" data-key="#">
+                <span class="key-special">#</span>
+            </button>
         </div>
+
+        <!-- Bottom Controls -->
         <div class="controls">
-            <button class="btn delete-btn" id="deleteBtn" title="Delete">&#9003;</button>
-            <button class="btn call-btn" id="callBtn">
-                <svg viewBox="0 0 24 24" fill="#fff">
-                    <circle cx="12" cy="12" r="10"/>
+            <!-- Mute Toggle -->
+            <button class="action-btn mute-btn" id="muteBtn" title="Mute" disabled>
+                <!-- Mic normal icon -->
+                <svg id="micIcon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                    <line x1="12" y1="19" x2="12" y2="22"/>
+                </svg>
+                <!-- Mic off icon -->
+                <svg id="micOffIcon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+                    <line x1="1" y1="1" x2="23" y2="23"/>
+                    <path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V5a3 3 0 0 0-5.68-1.33"/>
+                    <path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/>
+                    <line x1="12" y1="19" x2="12" y2="22"/>
+                </svg>
+            </button>
+
+            <!-- Call / Hangup Button -->
+            <button class="action-btn call-btn" id="callBtn" title="Call">
+                <svg class="call-icon" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M6.62 10.79a15.053 15.053 0 006.59 6.59l2.2-2.2a1 1 0 011.11-.21c1.12.45 2.33.69 3.48.69a1 1 0 011 1v3.5a1 1 0 01-1 1A17.91 17.91 0 012 4a1 1 0 011-1h3.5a1 1 0 011 1c0 1.15.24 2.36.69 3.48a1 1 0 01-.21 1.11l-2.36 2.2z"/>
+                </svg>
+            </button>
+
+            <!-- Backspace Button -->
+            <button class="action-btn delete-btn" id="deleteBtn" title="Delete">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/>
+                    <line x1="18" y1="9" x2="12" y2="15"/>
+                    <line x1="12" y1="9" x2="18" y2="15"/>
                 </svg>
             </button>
         </div>
     </div>
 
     <script>
-        console.log('Page loaded');
         let device = null;
         let activeCall = null;
-        const numberEl = document.getElementById('number');
-        const statusEl = document.getElementById('status');
+        let callTimerInterval = null;
+        let callStartTime = null;
+        let isMuted = false;
+
+        const numberInput = document.getElementById('numberInput');
+        const statusBadge = document.getElementById('statusBadge');
+        const statusText = document.getElementById('statusText');
         const callBtn = document.getElementById('callBtn');
+        const muteBtn = document.getElementById('muteBtn');
+        const micIcon = document.getElementById('micIcon');
+        const micOffIcon = document.getElementById('micOffIcon');
+        const deleteBtn = document.getElementById('deleteBtn');
 
-        // Fetch default number
+        // Optional DTMF audio feedback
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        let audioCtx = null;
+        const dtmfFrequencies = {
+            '1': [697, 1209], '2': [697, 1336], '3': [697, 1477],
+            '4': [770, 1209], '5': [770, 1336], '6': [770, 1477],
+            '7': [852, 1209], '8': [852, 1336], '9': [852, 1477],
+            '*': [941, 1209], '0': [941, 1336], '#': [941, 1477]
+        };
+
+        function playDTMF(key) {
+            const freqs = dtmfFrequencies[key];
+            if (!freqs) return;
+            try {
+                if (!audioCtx) audioCtx = new AudioContext();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+
+                const osc1 = audioCtx.createOscillator();
+                const osc2 = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+
+                osc1.frequency.value = freqs[0];
+                osc2.frequency.value = freqs[1];
+                osc1.type = 'sine';
+                osc2.type = 'sine';
+
+                gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.12);
+
+                osc1.connect(gain);
+                osc2.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc1.start();
+                osc2.start();
+                osc1.stop(audioCtx.currentTime + 0.12);
+                osc2.stop(audioCtx.currentTime + 0.12);
+            } catch (e) {
+                // AudioContext not allowed before user interaction
+            }
+        }
+
+        // Fetch pre-configured number
         fetch('/config')
-            .then(r => r.json())
+            .then(res => res.json())
             .then(data => {
-                if (data.defaultNumber) numberEl.value = data.defaultNumber;
-            });
+                if (data.defaultNumber && !numberInput.value) {
+                    numberInput.value = data.defaultNumber;
+                    updateDeleteBtnVisibility();
+                }
+            })
+            .catch(() => {});
 
-        function press(key) {
-            if (numberEl.value.length < 15) numberEl.value += key;
+        function updateDeleteBtnVisibility() {
+            if (numberInput.value.length > 0) {
+                deleteBtn.classList.remove('hidden');
+            } else {
+                deleteBtn.classList.add('hidden');
+            }
         }
 
-        function del() {
-            numberEl.value = numberEl.value.slice(0, -1);
+        function setStatus(text, stateClass = '') {
+            statusText.textContent = text;
+            statusBadge.className = 'status-badge ' + stateClass;
         }
 
-        function setStatus(text, type = '') {
-            statusEl.textContent = text;
-            statusEl.className = 'status ' + type;
+        function formatDuration(seconds) {
+            const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
+            const secs = (seconds % 60).toString().padStart(2, '0');
+            return `${mins}:${secs}`;
+        }
+
+        function startCallTimer() {
+            callStartTime = Date.now();
+            setStatus('00:00', 'connected');
+            callTimerInterval = setInterval(() => {
+                const elapsed = Math.floor((Date.now() - callStartTime) / 1000);
+                setStatus(isMuted ? `${formatDuration(elapsed)} (Muted)` : formatDuration(elapsed), isMuted ? 'muted' : 'connected');
+            }, 1000);
+        }
+
+        function stopCallTimer() {
+            if (callTimerInterval) {
+                clearInterval(callTimerInterval);
+                callTimerInterval = null;
+            }
+        }
+
+        function pressKey(key) {
+            playDTMF(key);
+            if (numberInput.value.length < 20) {
+                numberInput.value += key;
+                updateDeleteBtnVisibility();
+            }
+            // Send DTMF in active call (e.g. IVRs)
+            if (activeCall && typeof activeCall.sendDigits === 'function') {
+                activeCall.sendDigits(key);
+            }
+        }
+
+        function deleteDigit() {
+            numberInput.value = numberInput.value.slice(0, -1);
+            updateDeleteBtnVisibility();
+        }
+
+        function setMuteState(muted) {
+            isMuted = muted;
+            if (isMuted) {
+                muteBtn.classList.add('active');
+                micIcon.style.display = 'none';
+                micOffIcon.style.display = 'block';
+            } else {
+                muteBtn.classList.remove('active');
+                micIcon.style.display = 'block';
+                micOffIcon.style.display = 'none';
+            }
+        }
+
+        function toggleMute() {
+            if (!activeCall) return;
+            const newMuted = !isMuted;
+            activeCall.mute(newMuted);
+            setMuteState(newMuted);
         }
 
         async function initTwilio() {
@@ -98,118 +552,142 @@
                 setStatus('Connecting', 'connecting');
                 const response = await fetch('/token');
                 const data = await response.json();
-                console.log('Token received, length:', data.token ? data.token.length : 0);
 
-                // v2 SDK - loaded from local file
-                console.log('Twilio available:', typeof Twilio);
                 if (typeof Twilio === 'undefined' || !Twilio.Device) {
-                    setStatus('SDK failed to load', 'error');
+                    setStatus('SDK Unavailable', 'error');
                     return;
                 }
 
                 device = new Twilio.Device(data.token, { logLevel: 1 });
 
                 device.on('registered', () => {
-                    console.log('Device registered');
                     setStatus('Ready', 'connected');
-                    setTimeout(() => setStatus(''), 2000);
-                });
-
-                device.on('unregistered', () => {
-                    console.log('Device unregistered');
+                    setTimeout(() => {
+                        if (!activeCall) setStatus('Ready', '');
+                    }, 1800);
                 });
 
                 device.on('error', (e) => {
-                    console.error('Device error:', e);
-                    setStatus(e.message || 'Error', 'error');
+                    console.error('Twilio error:', e);
+                    setStatus(e.message || 'Device Error', 'error');
                 });
 
                 device.on('incoming', (call) => {
-                    console.log('Incoming call');
                     call.accept();
+                    activeCall = call;
+                    setupCallListeners(call);
                 });
 
                 await device.register();
-
-            } catch (e) {
-                setStatus('Failed', 'error');
-                console.error('Init error:', e);
+            } catch (err) {
+                console.error('Init error:', err);
+                setStatus('Setup Error', 'error');
             }
+        }
+
+        function setupCallListeners(call) {
+            call.on('accept', () => {
+                startCallTimer();
+                callBtn.classList.add('in-call');
+                muteBtn.disabled = false;
+                setMuteState(false);
+            });
+
+            call.on('disconnect', () => {
+                stopCallTimer();
+                callBtn.classList.remove('in-call');
+                muteBtn.disabled = true;
+                setMuteState(false);
+                setStatus('Call Ended', '');
+                activeCall = null;
+                setTimeout(() => {
+                    if (!activeCall) setStatus('Ready', '');
+                }, 2000);
+            });
+
+            call.on('error', (e) => {
+                console.error('Call error:', e);
+                stopCallTimer();
+                callBtn.classList.remove('in-call');
+                muteBtn.disabled = true;
+                setMuteState(false);
+                setStatus('Failed', 'error');
+                activeCall = null;
+            });
         }
 
         async function toggleCall() {
             if (!device) {
-                setStatus('Connecting...', 'connecting');
+                setStatus('Initializing...', 'connecting');
                 await initTwilio();
                 if (!device) return;
             }
 
             if (activeCall) {
                 activeCall.disconnect();
-                activeCall = null;
-                callBtn.classList.remove('active');
-                setStatus('');
                 return;
             }
 
-            const num = numberEl.value.trim();
+            const num = numberInput.value.trim();
             if (!num) {
                 setStatus('Enter Number', 'error');
+                setTimeout(() => {
+                    if (!activeCall) setStatus('Ready', '');
+                }, 1500);
                 return;
             }
 
             try {
-                setStatus('Calling', 'connecting');
+                setStatus('Calling...', 'connecting');
                 activeCall = await device.connect({ params: { To: num } });
-
-                activeCall.on('accept', () => {
-                    console.log('Call accepted');
-                    setStatus('Connected', 'connected');
-                    callBtn.classList.add('active');
-                });
-
-                activeCall.on('disconnect', () => {
-                    console.log('Call disconnected');
-                    setStatus('');
-                    callBtn.classList.remove('active');
-                    activeCall = null;
-                });
-
-                activeCall.on('error', (e) => {
-                    console.error('Call error:', e);
-                    setStatus('Failed', 'error');
-                    callBtn.classList.remove('active');
-                    activeCall = null;
-                });
-
-            } catch (e) {
-                setStatus('Failed', 'error');
-                console.error('Call error:', e);
+                setupCallListeners(activeCall);
+            } catch (err) {
+                console.error('Call launch error:', err);
+                setStatus('Call Failed', 'error');
+                callBtn.classList.remove('in-call');
+                muteBtn.disabled = true;
+                activeCall = null;
             }
         }
 
-        // Keypad events
+        // Event Listeners
         document.querySelectorAll('.key').forEach(btn => {
-            btn.addEventListener('click', () => press(btn.dataset.key));
+            btn.addEventListener('click', () => pressKey(btn.dataset.key));
         });
 
-        document.getElementById('deleteBtn').addEventListener('click', del);
+        deleteBtn.addEventListener('click', deleteDigit);
         callBtn.addEventListener('click', toggleCall);
+        muteBtn.addEventListener('click', toggleMute);
 
-        // Keyboard support - only when input is NOT focused
+        numberInput.addEventListener('input', updateDeleteBtnVisibility);
+
+        // Physical Keyboard Support
         document.addEventListener('keydown', (e) => {
-            if (document.activeElement === numberEl) return; // Skip if typing in input
+            if (document.activeElement === numberInput) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    toggleCall();
+                }
+                return;
+            }
+
             if (/^[0-9*#]$/.test(e.key)) {
                 e.preventDefault();
-                press(e.key);
-            }
-            if (e.key === 'Backspace') {
+                pressKey(e.key);
+            } else if (e.key === 'Backspace') {
                 e.preventDefault();
-                del();
+                deleteDigit();
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                toggleCall();
+            } else if (e.key.toLowerCase() === 'm' && activeCall) {
+                e.preventDefault();
+                toggleMute();
             }
-            if (e.key === 'Enter') toggleCall();
         });
 
+        // Initialize SDK and visibility
+        updateDeleteBtnVisibility();
         initTwilio();
     </script>
 </body>
